@@ -20,21 +20,23 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
 import android.util.Log;
+import android.util.Size;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.Toast;
 
 public class SimpleAndroidOCRActivity extends Activity {
-	
+
 	public static final String PACKAGE_NAME = "com.datumdroid.android.ocr.simple";
 	public static final String DATA_PATH = Environment.getExternalStorageDirectory().toString() + "/SimpleAndroidOCR/";
-	
-	// You should have the trained data file in assets folder 
+
+	// You should have the trained data file in assets folder
 	// You can get them at:
 	// http://code.google.com/p/tesseract-ocr/downloads/list
-	
-	public static final String lang = "eng";
+
+	public static final String lang = "eng";   
 	private static final String TAG = "SimpleAndroidOCR.java";
 	protected Button _button;
 	protected ImageView _image;
@@ -49,7 +51,7 @@ public class SimpleAndroidOCRActivity extends Activity {
 		String[] paths = new String[] { DATA_PATH, DATA_PATH + "tessdata/" };
 
 		for (String path : paths) {
-			
+
 			File dir = new File(path);
 			if (!dir.exists()) {
 				if (!dir.mkdirs()) {
@@ -60,7 +62,7 @@ public class SimpleAndroidOCRActivity extends Activity {
 				}
 			}
 		}
-		
+
 		// lang.traineddata file with the app (in assets folder)
 		// You can get them at:
 		// http://code.google.com/p/tesseract-ocr/downloads/list
@@ -84,7 +86,7 @@ public class SimpleAndroidOCRActivity extends Activity {
 				in.close();
 				//gin.close();
 				out.close();
-				
+
 				Log.v(TAG, "Copied " + lang + " traineddata");
 			} catch (IOException e) {
 				Log.e(TAG, "Was unable to copy " + lang + " traineddata " + e.toString());
@@ -147,7 +149,7 @@ public class SimpleAndroidOCRActivity extends Activity {
 	}
 
 	protected void onPhotoTaken() {
-		
+
 		_taken = true;
 		BitmapFactory.Options options = new BitmapFactory.Options();
 		options.inSampleSize = 4;
@@ -199,17 +201,17 @@ public class SimpleAndroidOCRActivity extends Activity {
 			Log.e(TAG, "Couldn't correct orientation: " + e.toString());
 		}
 
-		 _image.setImageBitmap( bitmap );
-		
+		_image.setImageBitmap( bitmap );
+
 		Log.v(TAG, "Before baseApi");
 
 		TessBaseAPI baseApi = new TessBaseAPI();
 		baseApi.setDebug(true);
 		baseApi.init(DATA_PATH, lang);
 		baseApi.setImage(bitmap);
-		
+
 		String recognizedText = baseApi.getUTF8Text();
-		
+
 		baseApi.end();
 
 		// You now have the text in recognizedText var, you can do anything with it.
@@ -220,7 +222,7 @@ public class SimpleAndroidOCRActivity extends Activity {
 		if ( lang.equalsIgnoreCase("eng") ) {
 			recognizedText = recognizedText.replaceAll("[^a-zA-Z0-9]+", " ");
 		}
-		
+
 		recognizedText = recognizedText.trim();
 
 		if ( recognizedText.length() != 0 ) {
@@ -229,4 +231,59 @@ public class SimpleAndroidOCRActivity extends Activity {
 		}
 	}
 
+	//http://www.phonesdevelopers.com/1707520/
+	private void edgeDetection() {
+
+		double scale = 0.1;
+
+		/*Bitmap bm1=BitmapFactory.decodeFile(_path);
+		imageview.setImageBitmap(bm1);*/
+		Mat img = Highgui.imread(_path,0);
+		
+		Size dsize = new Size(img.width()*scale,img.height()*scale);
+		Mat img2 = new Mat(dsize,CvType.CV_8SC1);
+		Mat img3 = new Mat();
+		img.convertTo(img2, CvType.CV_8SC1);
+		Imgproc.Canny(img, img3, 123, 250);
+		
+		boolean flag=Highgui.imwrite(DATA_PATH+"/new.jpg", img3);
+		if(flag)
+		{
+			File f = new File(DATA_PATH+"/new.jpg");
+			if(f.exists())
+			{
+				Bitmap bm=BitmapFactory.decodeFile(DATA_PATH+"/new.jpg");
+				_image.setImageBitmap(bm);
+			}
+		}//end if
+		else{
+		Toast.makeText(SimpleAndroidOCRActivity.this, "===========?============??", 3).show();
+		}
+
+	}
+	//Implement anyone of these methods: edgeDetection() , findEdges(Bitmap bmp)
+	//http://stackoverflow.com/questions/23969897/how-to-detect-edeges-android-opencv
+	private void findEdges(Bitmap bmp) {
+
+		//Bitmap bmp; //input image
+		Mat srcMat = new Mat ( bmp.getHeight(), bmp.getWidth(), CvType.CV_8UC3);
+		Bitmap myBitmap32 = bmp.copy(Bitmap.Config.ARGB_8888, true);
+		Utils.bitmapToMat(myBitmap32, srcMat);
+		
+		//Now perform canny edge detection on converted Mat, before that convert to gray,
+		Mat gray = new Mat(srcMat.size(), CvType.CV_8UC1);
+		Imgproc.cvtColor(srcMat, gray, Imgproc.COLOR_RGB2GRAY,4); 
+		
+		//Perform canny and convert to 4 channel
+		Mat edge = new Mat();
+		Mat dst = new Mat();
+		Imgproc.Canny(gray, edge, 80, 90);
+		Imgproc.cvtColor(edge, dst, Imgproc.COLOR_GRAY2RGBA,4);
+		
+		//Finally convert to bitmap
+		Bitmap resultBitmap = Bitmap.createBitmap(dst.cols(), dst.rows(),Bitmap.Config.ARGB_8888);           
+		Utils.matToBitmap(dst, resultBitmap);
+		
+		_image.setImageBitmap(resultBitmap);
+	}
 }
