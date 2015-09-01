@@ -10,16 +10,24 @@
         android:layout_height="wrap_content"
         android:text="@string/button_text" />
 
-    <EditText
+   <!--  <EditText
         android:id="@+id/field"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="@string/text_hint" />
+        android:hint="@string/text_hint" /> -->
 
     <ImageView
         android:id="@+id/image"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:contentDescription="@string/description"/>
+        android:layout_marginTop="10dp"
+        android:contentDescription="@string/description" />
+
+  <!--   <ImageView
+        android:id="@+id/image_result"
+        android:layout_width="match_parent"
+        android:layout_height="250dp"
+        android:layout_marginTop="10dp"
+        android:contentDescription="@string/description" /> -->
 
 </LinearLayout>

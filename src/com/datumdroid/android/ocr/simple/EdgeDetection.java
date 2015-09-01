@@ -72,7 +72,7 @@ public class EdgeDetection {
 	// Read bitmap
 	public Bitmap readBitmap(Uri selectedImage) {
 		
-		Bitmap bm = null;
+		Bitmap bm = null;   
 		BitmapFactory.Options options = new BitmapFactory.Options();
 		options.inSampleSize = 2;
 		AssetFileDescriptor fileDescriptor = null;
@@ -95,7 +95,7 @@ public class EdgeDetection {
 
 	private void FixImageProperties() {
 		
-		BitmapHandler bitmaphandler = new BitmapHandler(currContext);
+		/*BitmapHandler bitmaphandler = new BitmapHandler(currContext);
 		sourceImage = bitmaphandler.decodeFileAsPath(filePath);
 		
 		//sourceImage = readBitmap(inputImageUri);
@@ -117,7 +117,19 @@ public class EdgeDetection {
 		src.release();
 		Utils.bitmapToMat(sourceImage, src);
 		Log.v(TAG, "Bitmap to Mat Successful");
-		dst = Mat.zeros(src.size(), src.type());
+		dst = Mat.zeros(src.size(), src.type());*/
+
+        BitmapHandler bitmaphandler = new BitmapHandler(currContext);
+        sourceImage = bitmaphandler.decodeFileAsPath(filePath);
+        //sourceImage = readBitmap(inputImageUri);
+
+        destImage = sourceImage;
+
+        src.release();
+        Utils.bitmapToMat(sourceImage, src);
+        Log.v(TAG, "Bitmap to Mat Successful");
+        dst = Mat.zeros(src.size(), src.type());
+
 	}
 
 	// Private method to retrieve the URI of the converted image
