@@ -10,11 +10,11 @@
         android:layout_height="wrap_content"
         android:text="@string/button_text" />
 
-   <!--  <EditText
+    <EditText
         android:id="@+id/field"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="@string/text_hint" /> -->
+        android:hint="@string/text_hint" />
 
     <ImageView
         android:id="@+id/image"
