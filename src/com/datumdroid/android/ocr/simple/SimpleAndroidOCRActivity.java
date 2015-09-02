@@ -12,11 +12,13 @@ import org.opencv.android.BaseLoaderCallback;
 import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
 import org.opencv.android.Utils;
+import org.opencv.core.Core;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfPoint;
 import org.opencv.core.MatOfPoint2f;
 import org.opencv.core.Point;
+import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
 import org.opencv.core.Size;
 import org.opencv.highgui.Highgui;
@@ -56,7 +58,7 @@ public class SimpleAndroidOCRActivity extends Activity {
 	public static final String lang = "eng";   
 	private static final String TAG = "SimpleAndroidOCR.java";
 	protected Button _button;
-	protected ImageView _image;//, image_result; 
+	protected ImageView _image;
 	protected EditText _field;
 	protected String _path;
 	protected boolean _taken;
@@ -64,7 +66,7 @@ public class SimpleAndroidOCRActivity extends Activity {
 	protected static final String PHOTO_TAKEN = "photo_taken";
 	private List<MatOfPoint> contours;
 	private Mat imgSource;
-
+	private Rect boundingRectangle;
 
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
@@ -93,7 +95,6 @@ public class SimpleAndroidOCRActivity extends Activity {
 
 				AssetManager assetManager = getAssets();
 				InputStream in = assetManager.open("tessdata/" + lang + ".traineddata");
-				//GZIPInputStream gin = new GZIPInputStream(in);
 				OutputStream out = new FileOutputStream(DATA_PATH
 						+ "tessdata/" + lang + ".traineddata");
 
@@ -228,10 +229,6 @@ public class SimpleAndroidOCRActivity extends Activity {
 
 		Log.v(TAG, "Before baseApi");
 
-
-		//findEdges(bitmap);
-		//edgeDetection();
-
 		Log.i(TAG, "Trying to load OpenCV library");
 		if (!OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_2_4_3, this, mOpenCVCallBack))
 		{
@@ -281,19 +278,9 @@ public class SimpleAndroidOCRActivity extends Activity {
 			case LoaderCallbackInterface.SUCCESS:
 			{
 				Log.i(TAG, "OpenCV loaded successfully");
-				
+
 				correctPerspective();
-				//drawRects();
-				/*bitmap = toGrayscale(bitmap);
-				_image.setImageBitmap(bitmap);*/
-
-				//edgeDetection(); 
-
-				/*EdgeDetection edges = new EdgeDetection(getApplicationContext(), _path);
-				Uri inputImageUri = edges.AutoRotation();
-				Bitmap bmps = edges.readBitmap(inputImageUri);
-				_image.setImageURI(inputImageUri);*/
-
+				
 			} break;
 
 			default:
@@ -322,7 +309,7 @@ public class SimpleAndroidOCRActivity extends Activity {
 	}
 
 	public void correctPerspective() {
-		
+
 		//http://iswwwup.com/t/8a8246d90603/auto-perspective-correction-using-opencv-and-java.html
 		imgSource = Highgui.imread(_path, Highgui.CV_LOAD_IMAGE_UNCHANGED);
 		// convert the image to black and white does (8 bit)
@@ -333,8 +320,8 @@ public class SimpleAndroidOCRActivity extends Activity {
 
 		// find the contours
 		contours = new ArrayList<MatOfPoint>();
+
 		Imgproc.findContours(imgSource, contours, new Mat(), Imgproc.RETR_LIST, Imgproc.CHAIN_APPROX_SIMPLE);
-		//Imgproc.drawContours(imgSource, contours, -1, CONTOUR_COLOR, -1);
 		double maxArea = -1;
 		MatOfPoint temp_contour = contours.get(0); // the largest is at the
 		// index 0 for starting
@@ -345,31 +332,40 @@ public class SimpleAndroidOCRActivity extends Activity {
 
 			temp_contour = contours.get(idx);
 			double contourarea = Imgproc.contourArea(temp_contour);
-			// compare this contour to the previous largest contour found
+			boundingRectangle = Imgproc.boundingRect(contours.get(idx));
+			//compare this contour to the previous largest contour found
 			if (contourarea > maxArea) {
-				// check if this contour is a square
+
+				//check if this contour is a square
 				MatOfPoint2f new_mat = new MatOfPoint2f(temp_contour.toArray());
 				int contourSize = (int) temp_contour.total();
 				MatOfPoint2f approxCurve_temp = new MatOfPoint2f();
 				Imgproc.approxPolyDP(new_mat, approxCurve_temp, contourSize * 0.05, true);
+
 				if (approxCurve_temp.total() == 4) {
+
 					maxArea = contourarea;
 					approxCurve = approxCurve_temp;
 				}
 
-				//if (Imgproc.contourArea(contours.get(idx)) > 50 ){
-										
-					/*Rect rect = Imgproc.boundingRect(contours.get(idx));
-					System.out.println(rect.height);
-					if (rect.height > 28){
-						//System.out.println(rect.x +","+rect.y+","+rect.height+","+rect.width);
-						Core.rectangle(imgSource, new Point(rect.x,rect.height), new Point(rect.y,rect.width),new Scalar(255, 0, 0, 255), 3);
-						Imgproc.drawContours(imgSource, contours, idx, new Scalar(255, 0, 0, 255), 3);
-					}*/
-				//}
+				/*if (Imgproc.contourArea(contours.get(idx)) > 30 ){
 
-				Imgproc.drawContours(imgSource, contours, idx, new Scalar(255, 0, 0, 255), 3);
+					boundingRectangle = Imgproc.boundingRect(contours.get(idx));
+					System.out.println(boundingRectangle.height);
+					if (boundingRectangle.height > 28){
+						//System.out.println(rect.x +","+rect.y+","+rect.height+","+rect.width);
+						Core.rectangle(imgSource, new Point(boundingRectangle.x,boundingRectangle.height), new Point(boundingRectangle.y,boundingRectangle.width),new Scalar(255, 0, 0, 255), 3);
+						Imgproc.drawContours(imgSource, contours, idx, new Scalar(255, 0, 0, 255), 3);
+					}
+				}*/
+
+				//Imgproc.drawContours(imgSource, contours, idx, new Scalar(255, 0, 0, 255), 3);
 			}
+			if(boundingRectangle!=null){
+				
+				Core.rectangle(imgSource, new Point(boundingRectangle.x,boundingRectangle.height), new Point(boundingRectangle.y,boundingRectangle.width),new Scalar(255, 0, 0, 255), 3);			
+			}
+			Imgproc.drawContours(imgSource, contours, idx, new Scalar(255, 0, 0, 255), 3);
 		}
 
 		Highgui.imwrite(_path, imgSource);
@@ -378,16 +374,16 @@ public class SimpleAndroidOCRActivity extends Activity {
 		double[] temp_double;
 		temp_double = approxCurve.get(0, 0);
 		Point p1 = new Point(temp_double[0], temp_double[1]);
-		 //Core.circle(imgSource,p1,55,new Scalar(0,0,255));
+		//Core.circle(imgSource,p1,55,new Scalar(0,0,255));
 		temp_double = approxCurve.get(1, 0);
 		Point p2 = new Point(temp_double[0], temp_double[1]);
-		 //Core.circle(imgSource,p2,150,new Scalar(255,255,255));
+		//Core.circle(imgSource,p2,150,new Scalar(255,255,255));
 		temp_double = approxCurve.get(2, 0);
 		Point p3 = new Point(temp_double[0], temp_double[1]);
-		 //Core.circle(imgSource,p3,200,new Scalar(255,0,0));
+		//Core.circle(imgSource,p3,200,new Scalar(255,0,0));
 		temp_double = approxCurve.get(3, 0);
 		Point p4 = new Point(temp_double[0], temp_double[1]);
-		 //Core.circle(imgSource,p4,100,new Scalar(0,0,255));
+		//Core.circle(imgSource,p4,100,new Scalar(0,0,255));
 		List<Point> source = new ArrayList<Point>();
 		source.add(p1);
 		source.add(p2);
@@ -396,7 +392,7 @@ public class SimpleAndroidOCRActivity extends Activity {
 		Mat startM = Converters.vector_Point2f_to_Mat(source);
 		Mat result = warp(sourceImage, startM);
 
-		Highgui.imwrite(_path, result);
+		//Highgui.imwrite(_path, result);
 
 		try{
 

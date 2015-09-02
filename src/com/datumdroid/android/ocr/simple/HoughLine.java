@@ -152,9 +152,9 @@ public class HoughLine {
 	}
 	private Point[] startPt ;
 	private Point[] endPt ;
-	
+
 	public Point[] getLineCoords(boolean isUpper){
-		
+
 		//System.out.println("Start size "+startPt.length);
 		Point start = new Point();
 		Point end = new Point() ;

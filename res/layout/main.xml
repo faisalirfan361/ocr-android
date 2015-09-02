@@ -22,12 +22,4 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="10dp"
         android:contentDescription="@string/description" />
-
-  <!--   <ImageView
-        android:id="@+id/image_result"
-        android:layout_width="match_parent"
-        android:layout_height="250dp"
-        android:layout_marginTop="10dp"
-        android:contentDescription="@string/description" /> -->
-
 </LinearLayout>

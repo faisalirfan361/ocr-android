@@ -10,22 +10,22 @@ import android.graphics.BitmapFactory;
 import android.util.Log;
 
 public class BitmapHandler {
-	
+
 	private static int IMAGE_MAX_SIZE = 320;
 	private static String TAG = "Scope.java";
 	private Context mContext;
-	
+
 	public BitmapHandler(Context context){
-		
+
 		mContext =  context;
 	}
-	
+
 	public Bitmap decodeFileAsPath(String uri) {
 		// Create a file out of the uri
 		File f = null;
 		Log.v(TAG, "Incoming uri: " + uri);
 		f = new File(uri);
-		
+
 		if (f.equals(null)){
 			Log.v(TAG, "File is null!");
 		}
@@ -45,7 +45,7 @@ public class BitmapHandler {
 
 			int scale = 1;
 			Log.v(TAG, "Decode Image height: " + o.outHeight + " and width: " + o.outWidth);
-			
+
 			if (o.outHeight > IMAGE_MAX_SIZE || o.outWidth > IMAGE_MAX_SIZE) {
 				scale = (int) Math.pow(
 						2,
