@@ -240,35 +240,6 @@ public class SimpleAndroidOCRActivity extends Activity {
 		System.out.println(java.lang.Runtime.getRuntime().maxMemory()); 
 
 		}
-
-
-		/*		Toast.makeText(getApplicationContext(), "Extracting Text:", Toast.LENGTH_LONG).show();
-
-		TessBaseAPI baseApi = new TessBaseAPI();
-		baseApi.setDebug(true);
-		baseApi.init(DATA_PATH, lang);
-		baseApi.setImage(bitmap);
-
-		String recognizedText = baseApi.getUTF8Text();
-
-		baseApi.end();
-
-		// You now have the text in recognizedText var, you can do anything with it.
-		// We will display a stripped out trimmed alpha-numeric version of it (if lang is eng)
-		// so that garbage doesn't make it to the display.
-
-		Log.v(TAG, "OCRED TEXT: " + recognizedText);
-		if ( lang.equalsIgnoreCase("eng") ) {
-			recognizedText = recognizedText.replaceAll("[^a-zA-Z0-9]+", " ");
-		}
-
-
-		recognizedText = recognizedText.trim();
-
-		if ( recognizedText.length() != 0 ) {
-			_field.setText(_field.getText().toString().length() == 0 ? recognizedText : _field.getText() + " " + recognizedText);
-			_field.setSelection(_field.getText().toString().length());
-		}*/
 	}
 
 	private BaseLoaderCallback mOpenCVCallBack = new BaseLoaderCallback(this) {
@@ -280,9 +251,19 @@ public class SimpleAndroidOCRActivity extends Activity {
 			{
 				Log.i(TAG, "OpenCV loaded successfully");
 
-				correctPerspective(); //set the correct perspective of picture
-				locateText(outputMat); 
+				try{
 
+					correctPerspective(); //set the correct perspective of picture
+					Mat result = locateText(outputMat); //identify text and draw bounding box (rectangle)
+
+					Utils.matToBitmap(result, bitmap);
+					_image.setImageBitmap(bitmap);
+
+					readText(bitmap);		
+
+				}catch(Exception e){
+
+				}		
 			} break;
 
 			default:
@@ -314,6 +295,7 @@ public class SimpleAndroidOCRActivity extends Activity {
 
 		//http://iswwwup.com/t/8a8246d90603/auto-perspective-correction-using-opencv-and-java.html
 		imgSource = Highgui.imread(_path, Highgui.CV_LOAD_IMAGE_UNCHANGED);
+		
 		// convert the image to black and white does (8 bit)
 		Imgproc.Canny(imgSource.clone(), imgSource, 50, 50);
 
@@ -325,9 +307,7 @@ public class SimpleAndroidOCRActivity extends Activity {
 
 		Imgproc.findContours(imgSource, contours, new Mat(), Imgproc.RETR_LIST, Imgproc.CHAIN_APPROX_SIMPLE);
 		double maxArea = -1;
-		MatOfPoint temp_contour = contours.get(0); // the largest is at the
-		// index 0 for starting
-		// point
+		MatOfPoint temp_contour = contours.get(0); // the largest contour is at the index 0 for starting point
 		MatOfPoint2f approxCurve = new MatOfPoint2f();
 
 		for (int idx = 0; idx < contours.size(); idx++) {
@@ -409,43 +389,69 @@ public class SimpleAndroidOCRActivity extends Activity {
 	}
 
 	//Locate Text
-	public void locateText(Mat perspective){
+	//http://stackoverflow.com/questions/26814069/how-to-set-region-of-interest-in-opencv-java
+	public Mat locateText(Mat perspective){
 
 		Mat img_grayROI =  Highgui.imread(_path, Highgui.CV_LOAD_IMAGE_GRAYSCALE);
-		Imgproc.GaussianBlur(img_grayROI, img_grayROI,  new Size(3, 3), 5);
-		Imgproc.threshold(img_grayROI, img_grayROI, -1, 255, Imgproc.THRESH_BINARY_INV+Imgproc.THRESH_OTSU);		
-		Imgproc.dilate(img_grayROI, img_grayROI, Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(2, 2)));
+		//Imgproc.GaussianBlur(img_grayROI, img_grayROI,  new Size(3, 3), 5);
+
+		Imgproc.threshold(img_grayROI, img_grayROI, -1, 255, Imgproc.THRESH_BINARY_INV+Imgproc.THRESH_OTSU);	
+
+		Imgproc.dilate(img_grayROI, img_grayROI, Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(20, 20)));
 
 		Mat heirarchy= new Mat();
 		Point shift=new Point(150,0);
 
 		List<MatOfPoint> contours = new ArrayList<MatOfPoint>();    
 
-		Imgproc.findContours(img_grayROI, contours, heirarchy, Imgproc.RETR_LIST, Imgproc.CHAIN_APPROX_SIMPLE);
+		Imgproc.findContours(img_grayROI, contours, heirarchy, Imgproc.RETR_LIST, Imgproc.CHAIN_APPROX_NONE);
 		double[] cont_area =new double[contours.size()]; 
 
 		for(int i=0; i< contours.size();i++){
-			if (Imgproc.contourArea(contours.get(i)) > 50 ){
+
+			if (Imgproc.contourArea(contours.get(i)) > 100 ){  
+
 				Rect rect = Imgproc.boundingRect(contours.get(i));
 				cont_area[i]=Imgproc.contourArea(contours.get(i));
 
 				if (rect.height > 25){
 
-					Core.rectangle(perspective, new Point(rect.x,rect.y), new Point(rect.x+rect.width,rect.y+rect.height),new Scalar(0,0,255));
+					Core.rectangle(perspective, new Point(rect.x,rect.y), new Point(rect.x+rect.width,rect.y+rect.height),new Scalar(0,0,255),2);
 					System.out.println(rect.x +"-"+ rect.y +"-"+ rect.height+"-"+rect.width);
 					Highgui.imwrite(_path,perspective);
 				}
-			}
+			}    
+		}
+		return perspective;
+	}
+
+	private void readText(Bitmap bm) {
+
+		Toast.makeText(getApplicationContext(), "Extracting Text:", Toast.LENGTH_LONG).show();
+
+		TessBaseAPI baseApi = new TessBaseAPI();
+		baseApi.setDebug(true);
+		baseApi.init(DATA_PATH, lang);
+		baseApi.setImage(bm);
+
+		String recognizedText = baseApi.getUTF8Text();
+
+		baseApi.end();
+
+		// You now have the text in recognizedText var, you can do anything with it.
+		// We will display a stripped out trimmed alpha-numeric version of it (if lang is eng)
+		// so that garbage doesn't make it to the display.
+
+		Log.v(TAG, "OCRED TEXT: " + recognizedText);
+		if ( lang.equalsIgnoreCase("eng") ) {
+			recognizedText = recognizedText.replaceAll("[^a-zA-Z0-9]+", " ");
 		}
 
-		try{
+		recognizedText = recognizedText.trim();
 
-			Utils.matToBitmap(perspective, bitmap);
-			_image.setImageBitmap(bitmap);
-
-		}catch(Exception e) {
-
-			System.out.print(e.getMessage());
-		}
+		if ( recognizedText.length() != 0 ) {
+			_field.setText(_field.getText().toString().length() == 0 ? recognizedText : _field.getText() + " " + recognizedText);
+			_field.setSelection(_field.getText().toString().length());
+		}		
 	}
 }
