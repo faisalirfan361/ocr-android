@@ -131,6 +131,10 @@ public class SimpleAndroidOCRActivity extends Activity {
 	public class ButtonClickHandler implements View.OnClickListener {
 		public void onClick(View view) {
 			Log.v(TAG, "Starting Camera app");
+			if(_field.getText().toString().trim()!=null) {
+
+				_field.setText("");
+			}
 			startCameraActivity();
 		}
 	}   
@@ -139,6 +143,7 @@ public class SimpleAndroidOCRActivity extends Activity {
 	// http://labs.makemachine.net/2010/03/simple-android-photo-capture/
 
 	protected void startCameraActivity() {
+
 		File file = new File(_path);
 		Uri outputFileUri = Uri.fromFile(file);
 
@@ -180,53 +185,15 @@ public class SimpleAndroidOCRActivity extends Activity {
 		options.inSampleSize = 4;
 
 		bitmap = BitmapFactory.decodeFile(_path, options);
-
-		try {
-			ExifInterface exif = new ExifInterface(_path);
-			int exifOrientation = exif.getAttributeInt(
-					ExifInterface.TAG_ORIENTATION,
-					ExifInterface.ORIENTATION_NORMAL);
-
-			Log.v(TAG, "Orient: " + exifOrientation);
-
-			int rotate = 0;
-
-			switch (exifOrientation) {
-			case ExifInterface.ORIENTATION_ROTATE_90:
-				rotate = 90;
-				break;
-			case ExifInterface.ORIENTATION_ROTATE_180:
-				rotate = 180;
-				break;
-			case ExifInterface.ORIENTATION_ROTATE_270:
-				rotate = 270;
-				break;
-			}
-
-			Log.v(TAG, "Rotation: " + rotate);
-
-			if (rotate != 0) {
-
-				// Getting width & height of the given image.
-				int w = bitmap.getWidth();
-				int h = bitmap.getHeight();
-
-				// Setting pre rotate
-				Matrix mtx = new Matrix();
-				mtx.preRotate(rotate);
-
-				// Rotating Bitmap
-				bitmap = Bitmap.createBitmap(bitmap, 0, 0, w, h, mtx, false);
-			}
-
-			// Convert to ARGB_8888, required by tess
-			bitmap = bitmap.copy(Bitmap.Config.ARGB_8888, true);
-
-		} catch (IOException e) {
-			Log.e(TAG, "Couldn't correct orientation: " + e.toString());
-		}
-
 		_image.setImageBitmap( bitmap );
+
+		Matrix matrix = new Matrix();
+		matrix.postRotate(-90);	
+		//Bitmap rotatedBitmap = Bitmap.createBitmap(bitmap , 0, 0, bitmap .getWidth(), bitmap .getHeight(), matrix, true);
+
+
+		// Convert to ARGB_8888, required by tess
+		bitmap = bitmap.copy(Bitmap.Config.ARGB_8888, true);
 
 		Log.v(TAG, "Before baseApi");
 
@@ -235,10 +202,10 @@ public class SimpleAndroidOCRActivity extends Activity {
 		{
 			Log.e(TAG, "Cannot connect to OpenCV Manager");
 		}
-		else{ Log.i(TAG, "opencv successfull"); 
-
-		System.out.println(java.lang.Runtime.getRuntime().maxMemory()); 
-
+		else
+		{ 
+			Log.i(TAG, "opencv successfull"); 
+			System.out.println(java.lang.Runtime.getRuntime().maxMemory()); 
 		}
 	}
 
@@ -295,7 +262,7 @@ public class SimpleAndroidOCRActivity extends Activity {
 
 		//http://iswwwup.com/t/8a8246d90603/auto-perspective-correction-using-opencv-and-java.html
 		imgSource = Highgui.imread(_path, Highgui.CV_LOAD_IMAGE_UNCHANGED);
-		
+
 		// convert the image to black and white does (8 bit)
 		Imgproc.Canny(imgSource.clone(), imgSource, 50, 50);
 
@@ -427,12 +394,21 @@ public class SimpleAndroidOCRActivity extends Activity {
 
 	private void readText(Bitmap bm) {
 
+
 		Toast.makeText(getApplicationContext(), "Extracting Text:", Toast.LENGTH_LONG).show();
+
+		Matrix matrix = new Matrix();
+
+		matrix.postRotate(-90);
+
+		Bitmap rotatedBitmap = Bitmap.createBitmap(bm , 0, 0, bm .getWidth(), bm .getHeight(), matrix, true);
+
+		_image.setImageBitmap(rotatedBitmap);
 
 		TessBaseAPI baseApi = new TessBaseAPI();
 		baseApi.setDebug(true);
 		baseApi.init(DATA_PATH, lang);
-		baseApi.setImage(bm);
+		baseApi.setImage(rotatedBitmap);
 
 		String recognizedText = baseApi.getUTF8Text();
 
@@ -452,6 +428,7 @@ public class SimpleAndroidOCRActivity extends Activity {
 		if ( recognizedText.length() != 0 ) {
 			_field.setText(_field.getText().toString().length() == 0 ? recognizedText : _field.getText() + " " + recognizedText);
 			_field.setSelection(_field.getText().toString().length());
-		}		
+			Toast.makeText(getApplicationContext(), "Text: "+recognizedText, Toast.LENGTH_LONG).show();
+		}	
 	}
 }
