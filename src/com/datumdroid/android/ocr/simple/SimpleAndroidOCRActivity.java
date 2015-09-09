@@ -218,6 +218,7 @@ public class SimpleAndroidOCRActivity extends Activity {
 		
 		bitmap = Bitmap.createBitmap(bitmap , 0, 0, bitmap.getWidth(), bitmap.getHeight(), matrix, true);
 		_image.setImageBitmap(bitmap);*/
+		
 		// Convert to ARGB_8888, required by tess
 		bitmap = bitmap.copy(Bitmap.Config.ARGB_8888, true);
 		
@@ -234,6 +235,7 @@ public class SimpleAndroidOCRActivity extends Activity {
 	}
 
 	private BaseLoaderCallback mOpenCVCallBack = new BaseLoaderCallback(this) {
+		
 		@Override
 		public void onManagerConnected(int status) {
 			switch (status) {
@@ -244,13 +246,13 @@ public class SimpleAndroidOCRActivity extends Activity {
 
 				try{
 
-					Mat result = correctPerspective(); //set the correct perspective of picture
+					correctPerspective(); //set the correct perspective of picture
 					//_image.setImageBitmap(bitmap);
 					
-					Mat result_final = locateText(result); //identify text and draw bounding box (rectangle)
+					Mat result_final = locateText(outputMat); //identify text and draw bounding box (rectangle)
 					Utils.matToBitmap(result_final, bitmap);
 					_image.setImageBitmap(bitmap);
-
+  
 					readText(bitmap);
 					
 				}catch(Exception e){
@@ -262,7 +264,7 @@ public class SimpleAndroidOCRActivity extends Activity {
 			{
 				super.onManagerConnected(status);
 			} break;
-			}
+			} 
 		}
 	};
 
@@ -283,7 +285,7 @@ public class SimpleAndroidOCRActivity extends Activity {
 		return bmpGrayscale;
 	}
 
-	public Mat correctPerspective() {
+	public void correctPerspective() {
 
 		//http://iswwwup.com/t/8a8246d90603/auto-perspective-correction-using-opencv-and-java.html
 		imgSource = Highgui.imread(_path, Highgui.CV_LOAD_IMAGE_UNCHANGED);
@@ -341,13 +343,12 @@ public class SimpleAndroidOCRActivity extends Activity {
 		source.add(p3);
 		source.add(p4);
 		Mat startM = Converters.vector_Point2f_to_Mat(source);		
+				
 		Mat result = warp(sourceImage, startM);
 
 		Highgui.imwrite(_path, result);
 		
-		return result;
-		/*Utils.matToBitmap(result, bitmap);
-		_image.setImageBitmap(bitmap);*/
+		//return result;
 	}
 
 	public Mat warp(Mat inputMat, Mat startM) {
@@ -385,6 +386,13 @@ public class SimpleAndroidOCRActivity extends Activity {
 		
 		/*Utils.matToBitmap(outputMat, bitmap);
 		_image.setImageBitmap(bitmap);*/
+		
+		/*Utils.matToBitmap(outputMat, bitmap);
+		Matrix matrix = new Matrix();
+		matrix.preRotate(90);	
+		Bitmap rotatedBitmap = Bitmap.createBitmap(bitmap , 0, 0, bitmap .getWidth(), bitmap .getHeight(), matrix, true);
+		
+		Utils.bitmapToMat(rotatedBitmap, outputMat);*/
 
 		return outputMat;
 	}
@@ -430,18 +438,18 @@ public class SimpleAndroidOCRActivity extends Activity {
 
 		Toast.makeText(getApplicationContext(), "Extracting Text:", Toast.LENGTH_LONG).show();
 
-		/*Matrix matrix = new Matrix();
+		Matrix matrix = new Matrix();
 
-		matrix.postRotate(-90);
+		matrix.postRotate(90);
 
-		Bitmap rotatedBitmap = Bitmap.createBitmap(bm , 0, 0, bm .getWidth(), bm .getHeight(), matrix, true);*/
+		Bitmap rotatedBitmap = Bitmap.createBitmap(bm , 0, 0, bm .getWidth(), bm .getHeight(), matrix, true);
 
-		_image.setImageBitmap(bm);
+		_image.setImageBitmap(rotatedBitmap);
 
 		TessBaseAPI baseApi = new TessBaseAPI();
 		baseApi.setDebug(true);
 		baseApi.init(DATA_PATH, lang);
-		baseApi.setImage(bm);
+		baseApi.setImage(rotatedBitmap);
 
 		String recognizedText = baseApi.getUTF8Text();
 
@@ -454,8 +462,9 @@ public class SimpleAndroidOCRActivity extends Activity {
 		Log.v(TAG, "OCRED TEXT: " + recognizedText);
 		if ( lang.equalsIgnoreCase("eng") ) {
 			recognizedText = recognizedText.replaceAll("[^a-zA-Z0-9]+", " ");
+			recognizedText = recognizedText.trim();
 		}
-
+		
 		recognizedText = recognizedText.trim();
 		if ( recognizedText.length() != 0 ) {
 			_field.setText(_field.getText().toString().length() == 0 ? recognizedText : _field.getText() + " " + recognizedText);
