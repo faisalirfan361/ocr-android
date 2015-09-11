@@ -7,6 +7,11 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import javax.mail.internet.AddressException;
+import javax.mail.internet.InternetAddress;
 
 import org.opencv.android.BaseLoaderCallback;
 import org.opencv.android.LoaderCallbackInterface;
@@ -69,7 +74,8 @@ public class SimpleAndroidOCRActivity extends Activity {
 	private List<MatOfPoint> contours;
 	private Mat imgSource;
 	private Mat outputMat;
-
+	public static ArrayList emailList = new ArrayList();
+	
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 
@@ -215,13 +221,13 @@ public class SimpleAndroidOCRActivity extends Activity {
 		}
 		Matrix matrix = new Matrix();
 		matrix.postRotate(rotate);
-		
+
 		bitmap = Bitmap.createBitmap(bitmap , 0, 0, bitmap.getWidth(), bitmap.getHeight(), matrix, true);
 		_image.setImageBitmap(bitmap);*/
-		
+
 		// Convert to ARGB_8888, required by tess
 		bitmap = bitmap.copy(Bitmap.Config.ARGB_8888, true);
-		
+
 		Log.i(TAG, "Trying to load OpenCV library");
 		if (!OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_2_4_3, this, mOpenCVCallBack))
 		{
@@ -235,7 +241,7 @@ public class SimpleAndroidOCRActivity extends Activity {
 	}
 
 	private BaseLoaderCallback mOpenCVCallBack = new BaseLoaderCallback(this) {
-		
+
 		@Override
 		public void onManagerConnected(int status) {
 			switch (status) {
@@ -247,14 +253,13 @@ public class SimpleAndroidOCRActivity extends Activity {
 				try{
 
 					correctPerspective(); //set the correct perspective of picture
-					//_image.setImageBitmap(bitmap);
-					
+
 					Mat result_final = locateText(outputMat); //identify text and draw bounding box (rectangle)
 					Utils.matToBitmap(result_final, bitmap);
 					_image.setImageBitmap(bitmap);
-  
+
 					readText(bitmap);
-					
+
 				}catch(Exception e){
 
 				}		
@@ -289,7 +294,7 @@ public class SimpleAndroidOCRActivity extends Activity {
 
 		//http://iswwwup.com/t/8a8246d90603/auto-perspective-correction-using-opencv-and-java.html
 		imgSource = Highgui.imread(_path, Highgui.CV_LOAD_IMAGE_UNCHANGED);
-		
+
 		// convert the image to black and white does (8 bit)
 		Imgproc.Canny(imgSource.clone(), imgSource, 50, 50);
 
@@ -323,7 +328,7 @@ public class SimpleAndroidOCRActivity extends Activity {
 
 		Imgproc.cvtColor(imgSource, imgSource, Imgproc.COLOR_BayerBG2RGB);
 		Mat sourceImage = Highgui.imread(_path, Highgui.CV_LOAD_IMAGE_UNCHANGED);
-				
+
 		double[] temp_double;
 		temp_double = approxCurve.get(0, 0);
 		Point p1 = new Point(temp_double[0], temp_double[1]);
@@ -343,11 +348,11 @@ public class SimpleAndroidOCRActivity extends Activity {
 		source.add(p3);
 		source.add(p4);
 		Mat startM = Converters.vector_Point2f_to_Mat(source);		
-				
+
 		Mat result = warp(sourceImage, startM);
 
 		Highgui.imwrite(_path, result);
-		
+
 		//return result;
 	}
 
@@ -379,19 +384,19 @@ public class SimpleAndroidOCRActivity extends Activity {
 
 		Mat endM = Converters.vector_Point2f_to_Mat(dest);		
 		Mat perspectiveTransform = Imgproc.getPerspectiveTransform(startM, endM);
-				
+
 		Imgproc.warpPerspective(inputMat, outputMat, perspectiveTransform, new Size(resultWidth, resultHeight), Imgproc.INTER_CUBIC);
-		
-	    //Imgproc.warpPerspective(inputMat, outputMat, perspectiveTransform,new Size(resultWidth, resultHeight));
-		
+
+		//Imgproc.warpPerspective(inputMat, outputMat, perspectiveTransform,new Size(resultWidth, resultHeight));
+
 		/*Utils.matToBitmap(outputMat, bitmap);
 		_image.setImageBitmap(bitmap);*/
-		
+
 		/*Utils.matToBitmap(outputMat, bitmap);
 		Matrix matrix = new Matrix();
 		matrix.preRotate(90);	
 		Bitmap rotatedBitmap = Bitmap.createBitmap(bitmap , 0, 0, bitmap .getWidth(), bitmap .getHeight(), matrix, true);
-		
+
 		Utils.bitmapToMat(rotatedBitmap, outputMat);*/
 
 		return outputMat;
@@ -406,7 +411,7 @@ public class SimpleAndroidOCRActivity extends Activity {
 
 		Imgproc.threshold(img_grayROI, img_grayROI, -1, 255, Imgproc.THRESH_BINARY_INV+Imgproc.THRESH_OTSU);	
 
-		Imgproc.dilate(img_grayROI, img_grayROI, Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(20, 20)));
+		Imgproc.dilate(img_grayROI, img_grayROI, Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(25, 25)));
 
 		Mat heirarchy= new Mat();
 		Point shift=new Point(150,0);
@@ -449,6 +454,12 @@ public class SimpleAndroidOCRActivity extends Activity {
 		TessBaseAPI baseApi = new TessBaseAPI();
 		baseApi.setDebug(true);
 		baseApi.init(DATA_PATH, lang);
+		
+        String whiteList = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789,.-@:";
+        String blackList = "#$%*()+~`/&";
+        baseApi.setVariable(TessBaseAPI.VAR_CHAR_WHITELIST, whiteList);
+        baseApi.setVariable(TessBaseAPI.VAR_CHAR_BLACKLIST, blackList);
+		
 		baseApi.setImage(rotatedBitmap);
 
 		String recognizedText = baseApi.getUTF8Text();
@@ -462,14 +473,17 @@ public class SimpleAndroidOCRActivity extends Activity {
 		Log.v(TAG, "OCRED TEXT: " + recognizedText);
 		if ( lang.equalsIgnoreCase("eng") ) {
 			recognizedText = recognizedText.replaceAll("[^a-zA-Z0-9]+", " ");
-			recognizedText = recognizedText.trim();
 		}
-		
+
 		recognizedText = recognizedText.trim();
 		if ( recognizedText.length() != 0 ) {
+			
 			_field.setText(_field.getText().toString().length() == 0 ? recognizedText : _field.getText() + " " + recognizedText);
 			_field.setSelection(_field.getText().toString().length());
 			Toast.makeText(getApplicationContext(), "Text: "+recognizedText, Toast.LENGTH_LONG).show();
+			
+			getEmail(recognizedText);
+			//isValidEmailAddress(recognizedText);
 		}	
 	}
 
@@ -478,5 +492,32 @@ public class SimpleAndroidOCRActivity extends Activity {
 		Matrix matrix = new Matrix();
 		matrix.postRotate(angle);
 		return Bitmap.createBitmap(source, 0, 0, source.getWidth(), source.getHeight(), matrix, true);
+	}
+
+	public void getEmail(String line){
+		
+		final String RE_MAIL = "([\\w\\-]([\\.\\w])+[\\w]+@([\\w\\-]+\\.)+[A-Za-z]{2,4})";
+	    Pattern p = Pattern.compile(RE_MAIL);
+	    Matcher m = p.matcher(line);
+
+	    while(m.find()) {
+	    	if(!emailList.contains(m.group(1))){
+		        emailList.add(m.group(1));
+	    	}
+	    }
+	    
+	    Toast.makeText(getApplicationContext(), "Email: "+emailList.toString(), Toast.LENGTH_LONG).show();
+	}
+
+	public boolean isValidEmailAddress(String text) {
+
+		boolean result = true;
+		try {
+			InternetAddress emailAddr = new InternetAddress(text);
+			emailAddr.validate();
+		} catch (AddressException ex) {
+			result = false;
+		}
+		return result;
 	}
 }
