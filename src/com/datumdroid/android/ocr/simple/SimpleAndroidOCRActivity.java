@@ -7,11 +7,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-import javax.mail.internet.AddressException;
-import javax.mail.internet.InternetAddress;
 
 import org.opencv.android.BaseLoaderCallback;
 import org.opencv.android.LoaderCallbackInterface;
@@ -74,7 +69,7 @@ public class SimpleAndroidOCRActivity extends Activity {
 	private List<MatOfPoint> contours;
 	private Mat imgSource;
 	private Mat outputMat;
-	public static ArrayList emailList = new ArrayList();
+	//public static ArrayList emailList = new ArrayList();
 	
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
@@ -114,7 +109,6 @@ public class SimpleAndroidOCRActivity extends Activity {
 					out.write(buf, 0, len);
 				}
 				in.close();
-				//gin.close();
 				out.close();
 
 				Log.v(TAG, "Copied " + lang + " traineddata");
@@ -196,35 +190,6 @@ public class SimpleAndroidOCRActivity extends Activity {
 		Bitmap rotatedBitmap = Bitmap.createBitmap(bitmap , 0, 0, bitmap .getWidth(), bitmap .getHeight(), matrix, true);
 		_image.setImageBitmap(rotatedBitmap);
 
-		/*int rotate = 0;
-		try {
-			File imageFile = new File(_path);
-			ExifInterface exif = new ExifInterface(
-					imageFile.getAbsolutePath());
-			int orientation = exif.getAttributeInt(
-					ExifInterface.TAG_ORIENTATION,
-					ExifInterface.ORIENTATION_NORMAL);
-
-			switch (orientation) {
-			case ExifInterface.ORIENTATION_ROTATE_270:
-				rotate = 270;
-				break;
-			case ExifInterface.ORIENTATION_ROTATE_180:
-				rotate = 180;
-				break;
-			case ExifInterface.ORIENTATION_ROTATE_90:
-				rotate = 90;
-				break;
-			}
-		} catch (Exception e) {       
-			e.printStackTrace();
-		}
-		Matrix matrix = new Matrix();
-		matrix.postRotate(rotate);
-
-		bitmap = Bitmap.createBitmap(bitmap , 0, 0, bitmap.getWidth(), bitmap.getHeight(), matrix, true);
-		_image.setImageBitmap(bitmap);*/
-
 		// Convert to ARGB_8888, required by tess
 		bitmap = bitmap.copy(Bitmap.Config.ARGB_8888, true);
 
@@ -253,6 +218,7 @@ public class SimpleAndroidOCRActivity extends Activity {
 				try{
 
 					correctPerspective(); //set the correct perspective of picture
+					//Perspective ne
 
 					Mat result_final = locateText(outputMat); //identify text and draw bounding box (rectangle)
 					Utils.matToBitmap(result_final, bitmap);
@@ -294,7 +260,7 @@ public class SimpleAndroidOCRActivity extends Activity {
 
 		//http://iswwwup.com/t/8a8246d90603/auto-perspective-correction-using-opencv-and-java.html
 		imgSource = Highgui.imread(_path, Highgui.CV_LOAD_IMAGE_UNCHANGED);
-
+		
 		// convert the image to black and white does (8 bit)
 		Imgproc.Canny(imgSource.clone(), imgSource, 50, 50);
 
@@ -352,8 +318,6 @@ public class SimpleAndroidOCRActivity extends Activity {
 		Mat result = warp(sourceImage, startM);
 
 		Highgui.imwrite(_path, result);
-
-		//return result;
 	}
 
 	public Mat warp(Mat inputMat, Mat startM) {
@@ -384,11 +348,9 @@ public class SimpleAndroidOCRActivity extends Activity {
 
 		Mat endM = Converters.vector_Point2f_to_Mat(dest);		
 		Mat perspectiveTransform = Imgproc.getPerspectiveTransform(startM, endM);
-
+		
 		Imgproc.warpPerspective(inputMat, outputMat, perspectiveTransform, new Size(resultWidth, resultHeight), Imgproc.INTER_CUBIC);
-
-		//Imgproc.warpPerspective(inputMat, outputMat, perspectiveTransform,new Size(resultWidth, resultHeight));
-
+		
 		/*Utils.matToBitmap(outputMat, bitmap);
 		_image.setImageBitmap(bitmap);*/
 
@@ -407,6 +369,9 @@ public class SimpleAndroidOCRActivity extends Activity {
 	public Mat locateText(Mat perspective){
 
 		Mat img_grayROI =  Highgui.imread(_path, Highgui.CV_LOAD_IMAGE_GRAYSCALE);
+		
+		Utils.matToBitmap(img_grayROI, bitmap);
+		_image.setImageBitmap(bitmap);
 		//Imgproc.GaussianBlur(img_grayROI, img_grayROI,  new Size(3, 3), 5);
 
 		Imgproc.threshold(img_grayROI, img_grayROI, -1, 255, Imgproc.THRESH_BINARY_INV+Imgproc.THRESH_OTSU);	
@@ -482,7 +447,7 @@ public class SimpleAndroidOCRActivity extends Activity {
 			_field.setSelection(_field.getText().toString().length());
 			Toast.makeText(getApplicationContext(), "Text: "+recognizedText, Toast.LENGTH_LONG).show();
 			
-			getEmail(recognizedText);
+			//getEmail(recognizedText);
 			//isValidEmailAddress(recognizedText);
 		}	
 	}
@@ -494,7 +459,7 @@ public class SimpleAndroidOCRActivity extends Activity {
 		return Bitmap.createBitmap(source, 0, 0, source.getWidth(), source.getHeight(), matrix, true);
 	}
 
-	public void getEmail(String line){
+	/*public void getEmail(String line){
 		
 		final String RE_MAIL = "([\\w\\-]([\\.\\w])+[\\w]+@([\\w\\-]+\\.)+[A-Za-z]{2,4})";
 	    Pattern p = Pattern.compile(RE_MAIL);
@@ -519,5 +484,5 @@ public class SimpleAndroidOCRActivity extends Activity {
 			result = false;
 		}
 		return result;
-	}
+	}*/
 }
