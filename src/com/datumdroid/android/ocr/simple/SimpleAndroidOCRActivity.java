@@ -56,21 +56,20 @@ public class SimpleAndroidOCRActivity extends Activity {
 	// You should have the trained data file in assets folder
 	// You can get them at:
 	// http://code.google.com/p/tesseract-ocr/downloads/list
-
-	public static final String lang = "eng";   
+	public static final String lang = "eng";
 	private static final String TAG = "SimpleAndroidOCR.java";
 	protected Button _button;
 	protected ImageView _image;
 	protected EditText _field;
 	protected String _path;
 	protected boolean _taken;
-	private Bitmap bitmap;
+	private Bitmap bitmap;   
 	protected static final String PHOTO_TAKEN = "photo_taken";
 	private List<MatOfPoint> contours;
 	private Mat imgSource;
 	private Mat outputMat;
 	//public static ArrayList emailList = new ArrayList();
-	
+
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 
@@ -140,7 +139,6 @@ public class SimpleAndroidOCRActivity extends Activity {
 
 	// Simple android photo capture:
 	// http://labs.makemachine.net/2010/03/simple-android-photo-capture/
-
 	protected void startCameraActivity() {
 
 		File file = new File(_path);
@@ -199,7 +197,7 @@ public class SimpleAndroidOCRActivity extends Activity {
 			Log.e(TAG, "Cannot connect to OpenCV Manager");
 		}
 		else
-		{ 
+		{
 			Log.i(TAG, "opencv successfull"); 
 			System.out.println(java.lang.Runtime.getRuntime().maxMemory()); 
 		}
@@ -218,13 +216,16 @@ public class SimpleAndroidOCRActivity extends Activity {
 				try{
 
 					correctPerspective(); //set the correct perspective of picture
-					//Perspective ne
 
 					Mat result_final = locateText(outputMat); //identify text and draw bounding box (rectangle)
 					Utils.matToBitmap(result_final, bitmap);
-					_image.setImageBitmap(bitmap);
 
-					readText(bitmap);
+					Matrix matrix = new Matrix();
+					matrix.postRotate(90);
+					Bitmap rotatedBitmap = Bitmap.createBitmap(bitmap , 0, 0, bitmap .getWidth(), bitmap .getHeight(), matrix, true);
+					_image.setImageBitmap(rotatedBitmap);
+
+					readText(rotatedBitmap);
 
 				}catch(Exception e){
 
@@ -258,149 +259,170 @@ public class SimpleAndroidOCRActivity extends Activity {
 
 	public void correctPerspective() {
 
-		//http://iswwwup.com/t/8a8246d90603/auto-perspective-correction-using-opencv-and-java.html
-		imgSource = Highgui.imread(_path, Highgui.CV_LOAD_IMAGE_UNCHANGED);
-		
-		// convert the image to black and white does (8 bit)
-		Imgproc.Canny(imgSource.clone(), imgSource, 50, 50);
+		try{
 
-		// apply gaussian blur to smoothen lines of dots
-		Imgproc.GaussianBlur(imgSource, imgSource, new org.opencv.core.Size(5, 5), 5);
+			//http://iswwwup.com/t/8a8246d90603/auto-perspective-correction-using-opencv-and-java.html
+			imgSource = Highgui.imread(_path, Highgui.CV_LOAD_IMAGE_UNCHANGED);
 
-		// find the contours
-		contours = new ArrayList<MatOfPoint>();
+			// convert the image to black and white does (8 bit)
+			Imgproc.Canny(imgSource.clone(), imgSource, 50, 50);
 
-		Imgproc.findContours(imgSource, contours, new Mat(), Imgproc.RETR_LIST, Imgproc.CHAIN_APPROX_SIMPLE);
-		double maxArea = -1;
-		MatOfPoint temp_contour = contours.get(0); // the largest contour is at the index 0 for starting point
-		MatOfPoint2f approxCurve = new MatOfPoint2f();
+			// apply gaussian blur to smoothen lines of dots
+			Imgproc.GaussianBlur(imgSource, imgSource, new org.opencv.core.Size(5, 5), 5);
 
-		for (int idx = 0; idx < contours.size(); idx++) {
-			temp_contour = contours.get(idx);
-			double contourarea = Imgproc.contourArea(temp_contour);
-			// compare this contour to the previous largest contour found
-			if (contourarea > maxArea) {
-				// check if this contour is a square
-				MatOfPoint2f new_mat = new MatOfPoint2f(temp_contour.toArray());
-				int contourSize = (int) temp_contour.total();
-				MatOfPoint2f approxCurve_temp = new MatOfPoint2f();
-				Imgproc.approxPolyDP(new_mat, approxCurve_temp, contourSize * 0.05, true);
-				if (approxCurve_temp.total() == 4) {
-					maxArea = contourarea;
-					approxCurve = approxCurve_temp;
+			// find the contours
+			contours = new ArrayList<MatOfPoint>();
+
+			Imgproc.findContours(imgSource, contours, new Mat(), Imgproc.RETR_LIST, Imgproc.CHAIN_APPROX_SIMPLE);
+			double maxArea = -1;
+			MatOfPoint temp_contour = contours.get(0); // the largest contour is at the index 0 for starting point
+			MatOfPoint2f approxCurve = new MatOfPoint2f();
+
+			for (int idx = 0; idx < contours.size(); idx++) { 
+
+				temp_contour = contours.get(idx);
+				double contourarea = Imgproc.contourArea(temp_contour);
+				// compare this contour to the previous largest contour found
+				if (contourarea > maxArea) {
+					// check if this contour is a square
+					MatOfPoint2f new_mat = new MatOfPoint2f(temp_contour.toArray());
+					int contourSize = (int) temp_contour.total();
+					MatOfPoint2f approxCurve_temp = new MatOfPoint2f();
+					Imgproc.approxPolyDP(new_mat, approxCurve_temp, contourSize * 0.05, true);
+					if (approxCurve_temp.total() == 4) {
+						maxArea = contourarea;
+						approxCurve = approxCurve_temp;
+					}
 				}
 			}
+
+			Imgproc.cvtColor(imgSource, imgSource, Imgproc.COLOR_BayerBG2RGB);
+			Mat sourceImage = Highgui.imread(_path, Highgui.CV_LOAD_IMAGE_UNCHANGED);
+
+			double[] temp_double;
+			temp_double = approxCurve.get(0, 0);
+			Point p1 = new Point(temp_double[0], temp_double[1]);
+			//Core.circle(imgSource,p1,55,new Scalar(0,0,255));
+			temp_double = approxCurve.get(1, 0);
+			Point p2 = new Point(temp_double[0], temp_double[1]);
+			//Core.circle(imgSource,p2,150,new Scalar(255,255,255));
+			temp_double = approxCurve.get(2, 0);
+			Point p3 = new Point(temp_double[0], temp_double[1]);
+			//Core.circle(imgSource,p3,200,new Scalar(255,0,0));
+			temp_double = approxCurve.get(3, 0);
+			Point p4 = new Point(temp_double[0], temp_double[1]);
+			//Core.circle(imgSource,p4,100,new Scalar(0,0,255));
+			List<Point> source = new ArrayList<Point>();
+			source.add(p1);
+			source.add(p2);
+			source.add(p3);
+			source.add(p4);
+			Mat startM = Converters.vector_Point2f_to_Mat(source);		
+
+			Mat result = warp(sourceImage, startM);
+
+			Highgui.imwrite(_path, result);
+
+		}catch(Exception e){
+
 		}
-
-		Imgproc.cvtColor(imgSource, imgSource, Imgproc.COLOR_BayerBG2RGB);
-		Mat sourceImage = Highgui.imread(_path, Highgui.CV_LOAD_IMAGE_UNCHANGED);
-
-		double[] temp_double;
-		temp_double = approxCurve.get(0, 0);
-		Point p1 = new Point(temp_double[0], temp_double[1]);
-		//Core.circle(imgSource,p1,55,new Scalar(0,0,255));
-		temp_double = approxCurve.get(1, 0);
-		Point p2 = new Point(temp_double[0], temp_double[1]);
-		//Core.circle(imgSource,p2,150,new Scalar(255,255,255));
-		temp_double = approxCurve.get(2, 0);
-		Point p3 = new Point(temp_double[0], temp_double[1]);
-		//Core.circle(imgSource,p3,200,new Scalar(255,0,0));
-		temp_double = approxCurve.get(3, 0);
-		Point p4 = new Point(temp_double[0], temp_double[1]);
-		//Core.circle(imgSource,p4,100,new Scalar(0,0,255));
-		List<Point> source = new ArrayList<Point>();
-		source.add(p1);
-		source.add(p2);
-		source.add(p3);
-		source.add(p4);
-		Mat startM = Converters.vector_Point2f_to_Mat(source);		
-
-		Mat result = warp(sourceImage, startM);
-
-		Highgui.imwrite(_path, result);
 	}
-
 	public Mat warp(Mat inputMat, Mat startM) {
 
-		int resultWidth = bitmap.getWidth();
-		int resultHeight = bitmap.getHeight();
+		try{
 
-		Point ocvPOut4 = new Point(0, 0);
-		Point ocvPOut1 = new Point(0, resultHeight);
-		Point ocvPOut2 = new Point(resultWidth, resultHeight);
-		Point ocvPOut3 = new Point(resultWidth, 0);
+			int resultWidth = bitmap.getWidth();
+			int resultHeight = bitmap.getHeight();
 
-		if (inputMat.height() > inputMat.width()) {
+			Point ocvPOut4 = new Point(0, 0);
+			Point ocvPOut1 = new Point(0, resultHeight);
+			Point ocvPOut2 = new Point(resultWidth, resultHeight);
+			Point ocvPOut3 = new Point(resultWidth, 0);
 
-			ocvPOut3 = new Point(0, 0);
-			ocvPOut4 = new Point(0, resultHeight);
-			ocvPOut1 = new Point(resultWidth, resultHeight);
-			ocvPOut2 = new Point(resultWidth, 0);
+			if (inputMat.height() > inputMat.width()) {
+
+				ocvPOut3 = new Point(0, 0);
+				ocvPOut4 = new Point(0, resultHeight);
+				ocvPOut1 = new Point(resultWidth, resultHeight);
+				ocvPOut2 = new Point(resultWidth, 0);
+			}
+
+			outputMat = new Mat(resultWidth, resultHeight, CvType.CV_8UC4); 
+
+			List<Point> dest = new ArrayList<Point>();
+			dest.add(ocvPOut1);
+			dest.add(ocvPOut2);
+			dest.add(ocvPOut3);
+			dest.add(ocvPOut4);
+
+			Mat endM = Converters.vector_Point2f_to_Mat(dest);		
+			Mat perspectiveTransform = Imgproc.getPerspectiveTransform(startM, endM);
+
+			Imgproc.warpPerspective(inputMat, outputMat, perspectiveTransform, new Size(resultWidth, resultHeight), Imgproc.INTER_CUBIC);
+
+			/*Utils.matToBitmap(outputMat, bitmap);
+			_image.setImageBitmap(bitmap);*/
+
+			/*Utils.matToBitmap(outputMat, bitmap);
+			Matrix matrix = new Matrix();
+			matrix.preRotate(90);	
+			Bitmap rotatedBitmap = Bitmap.createBitmap(bitmap , 0, 0, bitmap .getWidth(), bitmap .getHeight(), matrix, true);
+
+			Utils.bitmapToMat(rotatedBitmap, outputMat);*/
+			return outputMat;
+
+		}catch(Exception e){
+
+			return outputMat;
 		}
 
-		outputMat = new Mat(resultWidth, resultHeight, CvType.CV_8UC4); 
-
-		List<Point> dest = new ArrayList<Point>();
-		dest.add(ocvPOut1);
-		dest.add(ocvPOut2);
-		dest.add(ocvPOut3);
-		dest.add(ocvPOut4);
-
-		Mat endM = Converters.vector_Point2f_to_Mat(dest);		
-		Mat perspectiveTransform = Imgproc.getPerspectiveTransform(startM, endM);
-		
-		Imgproc.warpPerspective(inputMat, outputMat, perspectiveTransform, new Size(resultWidth, resultHeight), Imgproc.INTER_CUBIC);
-		
-		/*Utils.matToBitmap(outputMat, bitmap);
-		_image.setImageBitmap(bitmap);*/
-
-		/*Utils.matToBitmap(outputMat, bitmap);
-		Matrix matrix = new Matrix();
-		matrix.preRotate(90);	
-		Bitmap rotatedBitmap = Bitmap.createBitmap(bitmap , 0, 0, bitmap .getWidth(), bitmap .getHeight(), matrix, true);
-
-		Utils.bitmapToMat(rotatedBitmap, outputMat);*/
-
-		return outputMat;
 	}
 
 	//Locate Text
 	//http://stackoverflow.com/questions/26814069/how-to-set-region-of-interest-in-opencv-java
 	public Mat locateText(Mat perspective){
 
-		Mat img_grayROI =  Highgui.imread(_path, Highgui.CV_LOAD_IMAGE_GRAYSCALE);
-		
-		Utils.matToBitmap(img_grayROI, bitmap);
-		_image.setImageBitmap(bitmap);
-		//Imgproc.GaussianBlur(img_grayROI, img_grayROI,  new Size(3, 3), 5);
+		try{
 
-		Imgproc.threshold(img_grayROI, img_grayROI, -1, 255, Imgproc.THRESH_BINARY_INV+Imgproc.THRESH_OTSU);	
+			Mat img_grayROI =  Highgui.imread(_path, Highgui.CV_LOAD_IMAGE_GRAYSCALE);
 
-		Imgproc.dilate(img_grayROI, img_grayROI, Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(25, 25)));
+			Utils.matToBitmap(img_grayROI, bitmap);
+			_image.setImageBitmap(bitmap);
+			//Imgproc.GaussianBlur(img_grayROI, img_grayROI,  new Size(3, 3), 5);
 
-		Mat heirarchy= new Mat();
-		Point shift=new Point(150,0);
+			Imgproc.threshold(img_grayROI, img_grayROI, -1, 255, Imgproc.THRESH_BINARY_INV+Imgproc.THRESH_OTSU);	
 
-		List<MatOfPoint> contours = new ArrayList<MatOfPoint>(); 
-		Imgproc.findContours(img_grayROI, contours, heirarchy, Imgproc.RETR_LIST, Imgproc.CHAIN_APPROX_NONE);
-		double[] cont_area =new double[contours.size()]; 
+			Imgproc.dilate(img_grayROI, img_grayROI, Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(25, 25)));
 
-		for(int i=0; i< contours.size();i++){
+			Mat heirarchy= new Mat();
+			Point shift=new Point(150,0);
 
-			if (Imgproc.contourArea(contours.get(i)) > 100 ){  
+			List<MatOfPoint> contours = new ArrayList<MatOfPoint>(); 
+			Imgproc.findContours(img_grayROI, contours, heirarchy, Imgproc.RETR_LIST, Imgproc.CHAIN_APPROX_NONE);
+			double[] cont_area =new double[contours.size()]; 
 
-				Rect rect = Imgproc.boundingRect(contours.get(i));
-				cont_area[i]=Imgproc.contourArea(contours.get(i));
+			for(int i=0; i< contours.size();i++){
 
-				if (rect.height > 25){
+				if (Imgproc.contourArea(contours.get(i)) > 100 ){  
 
-					Core.rectangle(perspective, new Point(rect.x,rect.y), new Point(rect.x+rect.width,rect.y+rect.height),new Scalar(0,0,255),2);
-					System.out.println(rect.x +"-"+ rect.y +"-"+ rect.height+"-"+rect.width);
-					Highgui.imwrite(_path,perspective);
+					Rect rect = Imgproc.boundingRect(contours.get(i));
+					cont_area[i]=Imgproc.contourArea(contours.get(i));
+
+					if (rect.height > 25){
+
+						Core.rectangle(perspective, new Point(rect.x,rect.y), new Point(rect.x+rect.width,rect.y+rect.height),new Scalar(0,0,255),2);
+						System.out.println(rect.x +"-"+ rect.y +"-"+ rect.height+"-"+rect.width);
+						Highgui.imwrite(_path,perspective);
+					}
 				}
 			}
+			return perspective;
+		}catch(Exception e){
+
+			return perspective;
 		}
-		return perspective;
+
+
 	} 
 
 	private void readText(Bitmap bm) {
@@ -408,27 +430,27 @@ public class SimpleAndroidOCRActivity extends Activity {
 
 		Toast.makeText(getApplicationContext(), "Extracting Text:", Toast.LENGTH_LONG).show();
 
-		Matrix matrix = new Matrix();
+		/*Matrix matrix = new Matrix();
 
-		matrix.postRotate(90);
+		matrix.preRotate(90);
 
 		Bitmap rotatedBitmap = Bitmap.createBitmap(bm , 0, 0, bm .getWidth(), bm .getHeight(), matrix, true);
 
-		_image.setImageBitmap(rotatedBitmap);
+		_image.setImageBitmap(rotatedBitmap);*/
 
 		TessBaseAPI baseApi = new TessBaseAPI();
 		baseApi.setDebug(true);
 		baseApi.init(DATA_PATH, lang);
-		
-        String whiteList = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789,.-@:";
-        String blackList = "#$%*()+~`/&";
-        baseApi.setVariable(TessBaseAPI.VAR_CHAR_WHITELIST, whiteList);
-        baseApi.setVariable(TessBaseAPI.VAR_CHAR_BLACKLIST, blackList);
-		
-		baseApi.setImage(rotatedBitmap);
 
+		//        String whiteList = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789,.-@:";
+		//        String blackList = "#$%*()+~`/&";
+		//        baseApi.setVariable(TessBaseAPI.VAR_CHAR_WHITELIST, whiteList);
+		//        baseApi.setVariable(TessBaseAPI.VAR_CHAR_BLACKLIST, blackList); 
+
+		baseApi.setVariable(TessBaseAPI.VAR_CHAR_WHITELIST, "!@#_=-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ");
+		baseApi.setPageSegMode(TessBaseAPI.OEM_TESSERACT_CUBE_COMBINED);
+		baseApi.setImage(bm);
 		String recognizedText = baseApi.getUTF8Text();
-
 		baseApi.end();
 
 		// You now have the text in recognizedText var, you can do anything with it.
@@ -442,11 +464,11 @@ public class SimpleAndroidOCRActivity extends Activity {
 
 		recognizedText = recognizedText.trim();
 		if ( recognizedText.length() != 0 ) {
-			
+
 			_field.setText(_field.getText().toString().length() == 0 ? recognizedText : _field.getText() + " " + recognizedText);
 			_field.setSelection(_field.getText().toString().length());
 			Toast.makeText(getApplicationContext(), "Text: "+recognizedText, Toast.LENGTH_LONG).show();
-			
+
 			//getEmail(recognizedText);
 			//isValidEmailAddress(recognizedText);
 		}	
@@ -460,7 +482,7 @@ public class SimpleAndroidOCRActivity extends Activity {
 	}
 
 	/*public void getEmail(String line){
-		
+
 		final String RE_MAIL = "([\\w\\-]([\\.\\w])+[\\w]+@([\\w\\-]+\\.)+[A-Za-z]{2,4})";
 	    Pattern p = Pattern.compile(RE_MAIL);
 	    Matcher m = p.matcher(line);
@@ -470,7 +492,7 @@ public class SimpleAndroidOCRActivity extends Activity {
 		        emailList.add(m.group(1));
 	    	}
 	    }
-	    
+
 	    Toast.makeText(getApplicationContext(), "Email: "+emailList.toString(), Toast.LENGTH_LONG).show();
 	}
 
