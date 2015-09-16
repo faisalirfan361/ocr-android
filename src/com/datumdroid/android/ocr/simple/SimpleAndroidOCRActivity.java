@@ -30,6 +30,7 @@ import com.googlecode.tesseract.android.TessBaseAPI;
 import android.app.Activity;
 import android.content.Intent;
 import android.content.res.AssetManager;
+import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
@@ -37,6 +38,7 @@ import android.graphics.ColorMatrix;
 import android.graphics.ColorMatrixColorFilter;
 import android.graphics.Matrix;
 import android.graphics.Paint;
+import android.media.ExifInterface;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
@@ -156,6 +158,7 @@ public class SimpleAndroidOCRActivity extends Activity {
 		Log.i(TAG, "resultCode: " + resultCode);
 
 		if (resultCode == -1) {
+		
 			onPhotoTaken();
 		} else {
 			Log.v(TAG, "User cancelled");
@@ -183,10 +186,10 @@ public class SimpleAndroidOCRActivity extends Activity {
 
 		bitmap = BitmapFactory.decodeFile(_path, options);		
 
-		Matrix matrix = new Matrix();
+		/*Matrix matrix = new Matrix();
 		matrix.preRotate(90);	
-		Bitmap rotatedBitmap = Bitmap.createBitmap(bitmap , 0, 0, bitmap .getWidth(), bitmap .getHeight(), matrix, true);
-		_image.setImageBitmap(rotatedBitmap);
+		Bitmap rotatedBitmap = Bitmap.createBitmap(bitmap , 0, 0, bitmap .getWidth(), bitmap .getHeight(), matrix, true);*/
+		_image.setImageBitmap(bitmap);
 
 		// Convert to ARGB_8888, required by tess
 		bitmap = bitmap.copy(Bitmap.Config.ARGB_8888, true);
@@ -220,12 +223,29 @@ public class SimpleAndroidOCRActivity extends Activity {
 					Mat result_final = locateText(outputMat); //identify text and draw bounding box (rectangle)
 					Utils.matToBitmap(result_final, bitmap);//DATA_PATH + "/corrected.jpg"
 
-					Matrix matrix = new Matrix();
+					/*Matrix matrix = new Matrix();
 					matrix.postRotate(90);
 					Bitmap rotatedBitmap = Bitmap.createBitmap(bitmap , 0, 0, bitmap .getWidth(), bitmap .getHeight(), matrix, true);
-					_image.setImageBitmap(rotatedBitmap);
-
-					readText(rotatedBitmap);
+					_image.setImageBitmap(rotatedBitmap);*/
+					//Bitmap rotatedBitmap = rotateImage();
+										
+					Uri uri = Uri.parse(DATA_PATH+"/locate_text.jpg");
+					Intent photoIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+					photoIntent.putExtra(MediaStore.EXTRA_OUTPUT, uri);
+					
+		            String[] orientationColumn = {MediaStore.Images.Media.ORIENTATION};
+		            Cursor cur = managedQuery(uri, orientationColumn, null, null, null);
+		            int orientation = -1;
+		            if (cur != null && cur.moveToFirst()) {
+		                orientation = cur.getInt(cur.getColumnIndex(orientationColumn[0]));
+		            }  
+		            Matrix matrix = new Matrix();
+		            matrix.postRotate(orientation);
+									
+		            bitmap = Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), matrix, true);
+		            
+					_image.setImageBitmap(bitmap);
+					readText(bitmap);
 
 				}catch(Exception e){
 
@@ -257,86 +277,7 @@ public class SimpleAndroidOCRActivity extends Activity {
 		return bmpGrayscale;
 	}
 
-	/*public static void correctPerspective() {
 
-		imgSource = Highgui.imread(_path, Highgui.CV_LOAD_IMAGE_UNCHANGED);
-
-		// convert the image to black and white does (8 bit)
-		Imgproc.Canny(imgSource.clone(), imgSource, 50, 50);
-
-		// apply gaussian blur to smoothen lines of dots
-		Imgproc.GaussianBlur(imgSource, imgSource, new org.opencv.core.Size(5, 5), 5);
-
-		// find the contours
-		contours = new ArrayList<MatOfPoint>();
-
-		Imgproc.findContours(imgSource, contours, new Mat(), Imgproc.RETR_LIST, Imgproc.CHAIN_APPROX_SIMPLE);
-		double maxArea = -1;
-		MatOfPoint temp_contour = contours.get(0); // the largest contour is at the index 0 for starting point
-		MatOfPoint2f approxCurve = new MatOfPoint2f();
-
-	    for (int idx = 0; idx < contours.size(); idx++) {
-	        temp_contour = contours.get(idx);
-	        double contourarea = Imgproc.contourArea(temp_contour);
-	        // compare this contour to the previous largest contour found
-	        if (contourarea > maxArea) {
-	            // check if this contour is a square
-	            MatOfPoint2f new_mat = new MatOfPoint2f(temp_contour.toArray());
-	            int contourSize = (int) temp_contour.total();
-	            MatOfPoint2f approxCurve_temp = new MatOfPoint2f();
-	            Imgproc.approxPolyDP(new_mat, approxCurve_temp, contourSize * 0.05, true);
-	            if (approxCurve_temp.total() == 4) {
-	                maxArea = contourarea;
-	                approxCurve = approxCurve_temp;
-	            }
-	        }
-	    }
-
-	    Imgproc.cvtColor(imgSource, imgSource, Imgproc.COLOR_BayerBG2RGB);
-	    Mat sourceImage = Highgui.imread(_path, Highgui.CV_LOAD_IMAGE_UNCHANGED);
-	    double[] temp_double;
-	    temp_double = approxCurve.get(0, 0);
-	    Point p1 = new Point(temp_double[0], temp_double[1]);
-	    // Core.circle(imgSource,p1,55,new Scalar(0,0,255));
-	    // Imgproc.warpAffine(sourceImage, dummy, rotImage,sourceImage.size());
-	    temp_double = approxCurve.get(1, 0);
-	    Point p2 = new Point(temp_double[0], temp_double[1]);
-	    // Core.circle(imgSource,p2,150,new Scalar(255,255,255));
-	    temp_double = approxCurve.get(2, 0);
-	    Point p3 = new Point(temp_double[0], temp_double[1]);
-	    // Core.circle(imgSource,p3,200,new Scalar(255,0,0));
-	    temp_double = approxCurve.get(3, 0);
-	    Point p4 = new Point(temp_double[0], temp_double[1]);
-	    // Core.circle(imgSource,p4,100,new Scalar(0,0,255));
-	    List<Point> source = new ArrayList<Point>();
-	    source.add(p1);
-	    source.add(p2);
-	    source.add(p3);
-	    source.add(p4);
-				super.onManagerConnected(status);
-			} break;
-			} 
-		}
-	};
-
-	public Bitmap toGrayscale(Bitmap bmpOriginal)
-	{        
-		int width, height;
-		height = bmpOriginal.getHeight();
-		width = bmpOriginal.getWidth();    
-
-		Bitmap bmpGrayscale = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-		Canvas c = new Canvas(bmpGrayscale);
-		Paint paint = new Paint();
-		ColorMatrix cm = new ColorMatrix();
-		cm.setSaturation(0);
-
-	    Mat startM = Converters.vector_Point2f_to_Mat(source);
-	    Mat result = warp(sourceImage, startM);
-
-	    Highgui.imwrite(_path, result);
-	}*/
-	
 	public void correctPerspective() {
 
 		try{
@@ -401,7 +342,7 @@ public class SimpleAndroidOCRActivity extends Activity {
 
 			Mat result = warp(sourceImage, startM);
 
-			Highgui.imwrite(_path, result);
+			Highgui.imwrite(DATA_PATH+"/correct_perspective.jpg", result);
 
 		}catch(Exception e){
 
@@ -491,7 +432,7 @@ public class SimpleAndroidOCRActivity extends Activity {
 
 						Core.rectangle(perspective, new Point(rect.x,rect.y), new Point(rect.x+rect.width,rect.y+rect.height),new Scalar(0,0,255),2);
 						System.out.println(rect.x +"-"+ rect.y +"-"+ rect.height+"-"+rect.width);
-						Highgui.imwrite(_path,perspective);
+						Highgui.imwrite(DATA_PATH+"/locate_text.jpg",perspective);
 					}
 				}
 			}
@@ -500,8 +441,6 @@ public class SimpleAndroidOCRActivity extends Activity {
 
 			return perspective;
 		}
-
-
 	} 
 
 	private void readText(Bitmap bm) {
@@ -516,6 +455,8 @@ public class SimpleAndroidOCRActivity extends Activity {
 		Bitmap rotatedBitmap = Bitmap.createBitmap(bm , 0, 0, bm .getWidth(), bm .getHeight(), matrix, true);
 
 		_image.setImageBitmap(rotatedBitmap);*/
+
+		//Bitmap btmp = rotateImage(bm);
 
 		TessBaseAPI baseApi = new TessBaseAPI();
 		baseApi.setDebug(true);
@@ -555,30 +496,37 @@ public class SimpleAndroidOCRActivity extends Activity {
 		return Bitmap.createBitmap(source, 0, 0, source.getWidth(), source.getHeight(), matrix, true);
 	}
 
-	/*public void getEmail(String line){
+	/*private Bitmap rotateImage()
+	{
+		Bitmap resultBitmap = null;
 
-		final String RE_MAIL = "([\\w\\-]([\\.\\w])+[\\w]+@([\\w\\-]+\\.)+[A-Za-z]{2,4})";
-	    Pattern p = Pattern.compile(RE_MAIL);
-	    Matcher m = p.matcher(line);
+		try
+		{
+			ExifInterface exifInterface = new ExifInterface(DATA_PATH+"/locate.jpg");
+			int orientation = exifInterface.getAttributeInt(ExifInterface.TAG_ORIENTATION, 1);
 
-	    while(m.find()) {
-	    	if(!emailList.contains(m.group(1))){
-		        emailList.add(m.group(1));
-	    	}
-	    }
+			Matrix matrix = new Matrix();
 
-	    Toast.makeText(getApplicationContext(), "Email: "+emailList.toString(), Toast.LENGTH_LONG).show();
-	}
+			if (orientation == ExifInterface.ORIENTATION_ROTATE_90)
+			{
+				matrix.postRotate(ExifInterface.ORIENTATION_ROTATE_90);
+			}
+			else if (orientation == ExifInterface.ORIENTATION_ROTATE_180)
+			{
+				matrix.postRotate(ExifInterface.ORIENTATION_ROTATE_180);
+			}
+			else if (orientation == ExifInterface.ORIENTATION_ROTATE_270)
+			{
+				matrix.postRotate(ExifInterface.ORIENTATION_ROTATE_270);
+			}
 
-	public boolean isValidEmailAddress(String text) {
-
-		boolean result = true;
-		try {
-			InternetAddress emailAddr = new InternetAddress(text);
-			emailAddr.validate();
-		} catch (AddressException ex) {
-			result = false;
+			// Rotate the bitmap
+			resultBitmap = Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), matrix, true);
 		}
-		return result;
+		catch (Exception exception)
+		{
+			Log.d("rotateImage(Bitmap bitmap):","Could not rotate the image");
+		}
+		return resultBitmap;
 	}*/
 }
