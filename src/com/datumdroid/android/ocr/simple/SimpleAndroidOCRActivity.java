@@ -61,13 +61,13 @@ public class SimpleAndroidOCRActivity extends Activity {
 	protected Button _button;
 	protected ImageView _image;
 	protected EditText _field;
-	protected String _path;
+	protected static String _path;
 	protected boolean _taken;
-	private Bitmap bitmap;   
+	private static Bitmap bitmap;   
 	protected static final String PHOTO_TAKEN = "photo_taken";
-	private List<MatOfPoint> contours;
-	private Mat imgSource;
-	private Mat outputMat;
+	private static List<MatOfPoint> contours;
+	private static Mat imgSource;
+	private static Mat outputMat;
 	//public static ArrayList emailList = new ArrayList();
 
 	@Override
@@ -141,7 +141,7 @@ public class SimpleAndroidOCRActivity extends Activity {
 	// http://labs.makemachine.net/2010/03/simple-android-photo-capture/
 	protected void startCameraActivity() {
 
-		File file = new File(_path);
+		File file = new File(DATA_PATH + "/ocr.jpg");
 		Uri outputFileUri = Uri.fromFile(file);
 
 		final Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
@@ -218,7 +218,7 @@ public class SimpleAndroidOCRActivity extends Activity {
 					correctPerspective(); //set the correct perspective of picture
 
 					Mat result_final = locateText(outputMat); //identify text and draw bounding box (rectangle)
-					Utils.matToBitmap(result_final, bitmap);
+					Utils.matToBitmap(result_final, bitmap);//DATA_PATH + "/corrected.jpg"
 
 					Matrix matrix = new Matrix();
 					matrix.postRotate(90);
@@ -257,6 +257,86 @@ public class SimpleAndroidOCRActivity extends Activity {
 		return bmpGrayscale;
 	}
 
+	/*public static void correctPerspective() {
+
+		imgSource = Highgui.imread(_path, Highgui.CV_LOAD_IMAGE_UNCHANGED);
+
+		// convert the image to black and white does (8 bit)
+		Imgproc.Canny(imgSource.clone(), imgSource, 50, 50);
+
+		// apply gaussian blur to smoothen lines of dots
+		Imgproc.GaussianBlur(imgSource, imgSource, new org.opencv.core.Size(5, 5), 5);
+
+		// find the contours
+		contours = new ArrayList<MatOfPoint>();
+
+		Imgproc.findContours(imgSource, contours, new Mat(), Imgproc.RETR_LIST, Imgproc.CHAIN_APPROX_SIMPLE);
+		double maxArea = -1;
+		MatOfPoint temp_contour = contours.get(0); // the largest contour is at the index 0 for starting point
+		MatOfPoint2f approxCurve = new MatOfPoint2f();
+
+	    for (int idx = 0; idx < contours.size(); idx++) {
+	        temp_contour = contours.get(idx);
+	        double contourarea = Imgproc.contourArea(temp_contour);
+	        // compare this contour to the previous largest contour found
+	        if (contourarea > maxArea) {
+	            // check if this contour is a square
+	            MatOfPoint2f new_mat = new MatOfPoint2f(temp_contour.toArray());
+	            int contourSize = (int) temp_contour.total();
+	            MatOfPoint2f approxCurve_temp = new MatOfPoint2f();
+	            Imgproc.approxPolyDP(new_mat, approxCurve_temp, contourSize * 0.05, true);
+	            if (approxCurve_temp.total() == 4) {
+	                maxArea = contourarea;
+	                approxCurve = approxCurve_temp;
+	            }
+	        }
+	    }
+
+	    Imgproc.cvtColor(imgSource, imgSource, Imgproc.COLOR_BayerBG2RGB);
+	    Mat sourceImage = Highgui.imread(_path, Highgui.CV_LOAD_IMAGE_UNCHANGED);
+	    double[] temp_double;
+	    temp_double = approxCurve.get(0, 0);
+	    Point p1 = new Point(temp_double[0], temp_double[1]);
+	    // Core.circle(imgSource,p1,55,new Scalar(0,0,255));
+	    // Imgproc.warpAffine(sourceImage, dummy, rotImage,sourceImage.size());
+	    temp_double = approxCurve.get(1, 0);
+	    Point p2 = new Point(temp_double[0], temp_double[1]);
+	    // Core.circle(imgSource,p2,150,new Scalar(255,255,255));
+	    temp_double = approxCurve.get(2, 0);
+	    Point p3 = new Point(temp_double[0], temp_double[1]);
+	    // Core.circle(imgSource,p3,200,new Scalar(255,0,0));
+	    temp_double = approxCurve.get(3, 0);
+	    Point p4 = new Point(temp_double[0], temp_double[1]);
+	    // Core.circle(imgSource,p4,100,new Scalar(0,0,255));
+	    List<Point> source = new ArrayList<Point>();
+	    source.add(p1);
+	    source.add(p2);
+	    source.add(p3);
+	    source.add(p4);
+				super.onManagerConnected(status);
+			} break;
+			} 
+		}
+	};
+
+	public Bitmap toGrayscale(Bitmap bmpOriginal)
+	{        
+		int width, height;
+		height = bmpOriginal.getHeight();
+		width = bmpOriginal.getWidth();    
+
+		Bitmap bmpGrayscale = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+		Canvas c = new Canvas(bmpGrayscale);
+		Paint paint = new Paint();
+		ColorMatrix cm = new ColorMatrix();
+		cm.setSaturation(0);
+
+	    Mat startM = Converters.vector_Point2f_to_Mat(source);
+	    Mat result = warp(sourceImage, startM);
+
+	    Highgui.imwrite(_path, result);
+	}*/
+	
 	public void correctPerspective() {
 
 		try{
@@ -327,7 +407,7 @@ public class SimpleAndroidOCRActivity extends Activity {
 
 		}
 	}
-	public Mat warp(Mat inputMat, Mat startM) {
+	public static Mat warp(Mat inputMat, Mat startM) {
 
 		try{
 
@@ -375,7 +455,6 @@ public class SimpleAndroidOCRActivity extends Activity {
 
 			return outputMat;
 		}
-
 	}
 
 	//Locate Text
@@ -392,7 +471,7 @@ public class SimpleAndroidOCRActivity extends Activity {
 
 			Imgproc.threshold(img_grayROI, img_grayROI, -1, 255, Imgproc.THRESH_BINARY_INV+Imgproc.THRESH_OTSU);	
 
-			Imgproc.dilate(img_grayROI, img_grayROI, Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(25, 25)));
+			Imgproc.dilate(img_grayROI, img_grayROI, Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(5, 7)));
 
 			Mat heirarchy= new Mat();
 			Point shift=new Point(150,0);
@@ -403,7 +482,7 @@ public class SimpleAndroidOCRActivity extends Activity {
 
 			for(int i=0; i< contours.size();i++){
 
-				if (Imgproc.contourArea(contours.get(i)) > 100 ){  
+				if (Imgproc.contourArea(contours.get(i)) > 35 ){  
 
 					Rect rect = Imgproc.boundingRect(contours.get(i));
 					cont_area[i]=Imgproc.contourArea(contours.get(i));
@@ -441,11 +520,6 @@ public class SimpleAndroidOCRActivity extends Activity {
 		TessBaseAPI baseApi = new TessBaseAPI();
 		baseApi.setDebug(true);
 		baseApi.init(DATA_PATH, lang);
-
-		//        String whiteList = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789,.-@:";
-		//        String blackList = "#$%*()+~`/&";
-		//        baseApi.setVariable(TessBaseAPI.VAR_CHAR_WHITELIST, whiteList);
-		//        baseApi.setVariable(TessBaseAPI.VAR_CHAR_BLACKLIST, blackList); 
 
 		baseApi.setVariable(TessBaseAPI.VAR_CHAR_WHITELIST, "!@#_=-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ");
 		baseApi.setPageSegMode(TessBaseAPI.OEM_TESSERACT_CUBE_COMBINED);
